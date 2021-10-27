@@ -200,7 +200,7 @@ def testDocTableInfo(env):
     conn.execute_command('FT.CREATE', 'idx', 'SCHEMA', 'txt', 'TEXT', 'SORTABLE')
 
     d = ft_info_to_dict(env, 'idx')
-    env.assertEqual(d['num_docs'], '0')
+    env.assertEqual(d['num_docs'], 0L)
     env.assertEqual(d['doc_table_size_mb'], '0')
     env.assertEqual(d['sortable_values_size_mb'], '0')
 
