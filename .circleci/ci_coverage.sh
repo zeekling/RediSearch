@@ -19,7 +19,7 @@ if [[ -z $CI_CONCURRENCY ]]; then
 fi
 
 make -j$CI_CONCURRENCY
-BRANCH=omer_multipath_2 $ROOT/sbin/get-redisjson
+BRANCH=master $ROOT/sbin/get-redisjson
 
 cat >rltest.config <<EOF
 --unix

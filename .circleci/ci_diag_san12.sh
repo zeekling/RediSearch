@@ -68,7 +68,7 @@ if [[ ! -d RedisJSON ]]; then
 fi
 
 cd RedisJSON
-git checkout omer_multipath_2
+git checkout master
 git pull --quiet --recurse-submodules
 $READIES/bin/getpy3
 ./system-setup.py
