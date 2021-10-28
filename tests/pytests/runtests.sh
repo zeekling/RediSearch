@@ -147,7 +147,7 @@ fi
 
 #---------------------------------------------------------------------------------------------- 
 
-REJSON_BRANCH=${REJSON_BRANCH:-master}
+REJSON_BRANCH=${REJSON_BRANCH:-omer_multipath_2}
 
 if [[ -n $REJSON && $REJSON != 0 ]]; then
 	platform=`$READIES/bin/platform -t`

@@ -13,7 +13,7 @@ if [[ ! -z $USE_COVERAGE ]]; then
     ./lcov-init.sh
 fi
 
-BRANCH=master $ROOT/sbin/get-redisjson
+BRANCH=omer_multipath_2 $ROOT/sbin/get-redisjson
 COMPAT_DIR="$ROOT/$BUILD_DIR" make -C $ROOT test
 
 REJSON=1 EXISTING_ENV=1 $ROOT/tests/pytests/runtests.sh $ROOT/$BUILD_DIR/redisearch.so
