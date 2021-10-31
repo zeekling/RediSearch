@@ -809,7 +809,7 @@ IndexDecoderProcs InvertedIndex_GetDecoder(uint32_t flags) {
     // ()
     case Index_DocIdsOnly:
       if (RSGlobalConfig.invertedIndexRawDocidEncoding) {
-        RETURN_DECODERS(readRawDocIdsOnly, seekRawDocIdsOnly);
+        RETURN_DECODERS(readRawDocIdsOnly, NULL); //@@ seekRawDocIdsOnly
       } else {
         RETURN_DECODERS(readDocIdsOnly, NULL);
       }
