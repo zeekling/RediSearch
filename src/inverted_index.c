@@ -206,8 +206,12 @@ ENCODER(encodeFreqsOffsets) {
 
 // 8. Encode only the doc ids
 ENCODER(encodeDocIdsOnly) {
+  return WriteVarint(delta, bw);
+}
+
+// 9. Encode only the doc ids
+ENCODER(encodeRawDocIdsOnly) {
   return Buffer_Write(bw, &delta, 4);
-  // return WriteVarint(delta, bw);
 }
 
 /**
@@ -401,7 +405,11 @@ IndexEncoder InvertedIndex_GetEncoder(IndexFlags flags) {
 
     // 0. docid only
     case Index_DocIdsOnly:
-      return encodeDocIdsOnly;
+      if (RSGlobalConfig.invertedIndexRawDocidEncoding) {
+        return encodeRawDocIdsOnly;
+      } else {
+        return encodeDocIdsOnly;
+      }
 
     case Index_StoreNumeric:
       return encodeNumeric;
@@ -437,7 +445,7 @@ size_t InvertedIndex_WriteEntryGeneric(InvertedIndex *idx, IndexEncoder encoder,
     blk->firstId = blk->lastId = docId;
   }
 
-  if (encoder != encodeDocIdsOnly) {
+  if (encoder != encodeRawDocIdsOnly) {
     delta = docId - blk->lastId;
   } else {
     delta = docId - blk->firstId;
@@ -708,7 +716,7 @@ DECODER(readFreqsOffsets) {
   return 1;
 }
 
-SKIPPER(seekDocIdsOnly) {
+SKIPPER(seekRawDocIdsOnly) {
   uint64_t delta = expid - IR_CURRENT_BLOCK(ir).firstId;
 
   size_t firstPos = br->pos;
@@ -727,6 +735,7 @@ SKIPPER(seekDocIdsOnly) {
   size_t cur = start;
   uint32_t curVal = buf[cur];
 
+  // perform binary search
   while (start < end) {
     if (curVal == delta) {
       break;
@@ -737,7 +746,7 @@ SKIPPER(seekDocIdsOnly) {
       start = cur + 1;
     }
     cur = (end + start) / 2;
-    curVal = buf[cur]; 
+    curVal = buf[cur];
   }
 
   // we cannot get out of range since we check in 
@@ -745,6 +754,7 @@ SKIPPER(seekDocIdsOnly) {
     cur++;
   }
 
+  // skip to position and read
   Buffer_Seek(br, cur * 4);
   Buffer_Read(br, &res->docId, 4);
 
@@ -754,9 +764,14 @@ final:
   return 1;
 }
 
-DECODER(readDocIdsOnly) {
+DECODER(readRawDocIdsOnly) {
   Buffer_Read(br, &res->docId, 4);
-  // res->docId = ReadVarint(br);
+  res->freq = 1;
+  return 1;  // Don't care about field mask
+}
+
+DECODER(readDocIdsOnly) {
+  res->docId = ReadVarint(br);
   res->freq = 1;
   return 1;  // Don't care about field mask
 }
@@ -793,7 +808,11 @@ IndexDecoderProcs InvertedIndex_GetDecoder(uint32_t flags) {
 
     // ()
     case Index_DocIdsOnly:
-      RETURN_DECODERS(readDocIdsOnly, seekDocIdsOnly);
+      if (RSGlobalConfig.invertedIndexRawDocidEncoding) {
+        RETURN_DECODERS(readRawDocIdsOnly, seekRawDocIdsOnly);
+      } else {
+        RETURN_DECODERS(readDocIdsOnly, NULL);
+      }
 
     // (freqs, offsets)
     case Index_StoreFreqs | Index_StoreTermOffsets:
@@ -950,7 +969,7 @@ int IR_Read(void *ctx, RSIndexResult **e) {
 
     // We write the docid as a 32 bit number when decoding it with qint.
     uint32_t delta = *(uint32_t *)&record->docId;
-    if (ir->decoders.decoder != readDocIdsOnly) {
+    if (ir->decoders.decoder != readRawDocIdsOnly) {
       ir->lastId = record->docId = ir->lastId + delta;
     } else {
       ir->lastId = record->docId = IR_CURRENT_BLOCK(ir).firstId + delta;
@@ -1251,7 +1270,7 @@ int IndexBlock_Repair(IndexBlock *blk, DocTable *dt, IndexFlags flags, IndexRepa
       // not an old rdb version
       // on an old rdb version, the first entry is the docid itself and not
       // the delta, so no need to increase by the lastReadId
-      if (decoders.decoder != readDocIdsOnly) {
+      if (decoders.decoder != readRawDocIdsOnly) {
         res->docId = (*(uint32_t *)&res->docId) + lastReadId;
       } else {
         res->docId = (*(uint32_t *)&res->docId) + firstReadId;
@@ -1287,10 +1306,10 @@ int IndexBlock_Repair(IndexBlock *blk, DocTable *dt, IndexFlags flags, IndexRepa
         if (!blk->firstId) {
           blk->firstId = res->docId;
         }
-        if (isLastValid && encoder != encodeDocIdsOnly) {
+        if (isLastValid && encoder != encodeRawDocIdsOnly) {
           Buffer_Write(&bw, bufBegin, sz);
         } else {
-          if (encoder != encodeDocIdsOnly) {
+          if (encoder != encodeRawDocIdsOnly) {
             encoder(&bw, res->docId - blk->lastId, res);
           } else {
             encoder(&bw, res->docId - blk->firstId, res);
