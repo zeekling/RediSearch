@@ -18,7 +18,7 @@ uint64_t TotalIIBlocks = 0;
 
 // The number of entries in each index block. A new block will be created after every N entries
 #define INDEX_BLOCK_SIZE 100
-#define INDEX_BLOCK_SIZE_DOCID_ONLY 100
+#define INDEX_BLOCK_SIZE_DOCID_ONLY 1000
 
 // Initial capacity (in bytes) of a new block
 #define INDEX_BLOCK_INITIAL_CAP 6
@@ -809,7 +809,7 @@ IndexDecoderProcs InvertedIndex_GetDecoder(uint32_t flags) {
     // ()
     case Index_DocIdsOnly:
       if (RSGlobalConfig.invertedIndexRawDocidEncoding) {
-        RETURN_DECODERS(readRawDocIdsOnly, NULL); //@@ seekRawDocIdsOnly
+        RETURN_DECODERS(readRawDocIdsOnly, seekRawDocIdsOnly);
       } else {
         RETURN_DECODERS(readDocIdsOnly, NULL);
       }
