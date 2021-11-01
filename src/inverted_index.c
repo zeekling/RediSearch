@@ -717,6 +717,18 @@ DECODER(readFreqsOffsets) {
 }
 
 SKIPPER(seekRawDocIdsOnly) {
+#if 1
+  int64_t delta = expid - IR_CURRENT_BLOCK(ir).firstId;
+
+  Buffer_Read(br, &res->docId, 4);
+  if (res->docId >= delta || delta < 0) {
+    goto final;
+  }
+
+  uint32_t *buf = (uint32_t *)br->buf->data;
+  size_t start = br->pos / 4;
+  size_t end = (br->buf->offset - 4) / 4;
+#else
   uint64_t delta = expid - IR_CURRENT_BLOCK(ir).firstId;
 
   size_t firstPos = br->pos;
@@ -732,6 +744,7 @@ SKIPPER(seekRawDocIdsOnly) {
   uint32_t *buf = (uint32_t *)br->buf->data;
   size_t start = firstPos / 4;
   size_t end = lastPos / 4;
+#endif
   size_t cur = start;
   uint32_t curVal = buf[cur];
 
@@ -1303,6 +1316,20 @@ int IndexBlock_Repair(IndexBlock *blk, DocTable *dt, IndexFlags flags, IndexRepa
         if (!blk->lastId) {
           blk->lastId = res->docId;
         }
+#if 1
+        if (encoder != encodeRawDocIdsOnly) {
+          if (isLastValid) {
+            Buffer_Write(&bw, bufBegin, sz);
+          } else {
+            encoder(&bw, res->docId - blk->lastId, res);
+          }
+        } else { // encoder == encodeRawDocIdsOnly
+          if (!blk->firstId) {
+            blk->firstId = res->docId;
+          }
+            encoder(&bw, res->docId - blk->firstId, res);
+          }
+#else
         if (!blk->firstId) {
           blk->firstId = res->docId;
         }
@@ -1315,6 +1342,7 @@ int IndexBlock_Repair(IndexBlock *blk, DocTable *dt, IndexFlags flags, IndexRepa
             encoder(&bw, res->docId - blk->firstId, res);
           }
         }
+#endif
       }
 
       // Update these for every valid document, even for those which

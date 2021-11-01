@@ -2047,7 +2047,7 @@ def testTimeout(env):
     if VALGRIND:
         env.skip()
 
-    num_range = 1000
+    num_range = 2000
     env.cmd('ft.config', 'set', 'timeout', '1')
     env.cmd('ft.config', 'set', 'maxprefixexpansions', num_range)
 
