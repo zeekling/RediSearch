@@ -32,6 +32,40 @@ TEST_F(LLApiTest, testGetVersion) {
   ASSERT_EQ(RediSearch_GetCApiVersion(), REDISEARCH_CAPI_VERSION);
 }
 
+static inline void rs_timersub(struct timespec *a, struct timespec *b, struct timespec *result) {
+  result->tv_sec = a->tv_sec - b->tv_sec;
+  result->tv_nsec = a->tv_nsec - b->tv_nsec;
+  if (result->tv_nsec < 0) {	
+    result->tv_sec  -= 1;
+    result->tv_nsec += 1000000000;
+  }	
+}
+
+TEST_F(LLApiTest, test100MDocs) {
+  // creating the index
+  RSIndex* index = RediSearch_CreateIndex("index", NULL);
+
+  struct timespec prev, now, result;  
+  clock_gettime(CLOCK_MONOTONIC_RAW, &prev);
+
+  // adding text field to the index
+  RediSearch_CreateField(index, NUMERIC_FIELD_NAME, RSFLDTYPE_NUMERIC, RSFLDOPT_NONE);
+  for (size_t i = 0; i < 100000000; ++i) {
+    RSDoc* d = RediSearch_CreateDocument(&i, sizeof(size_t), 1.0, NULL);
+    RediSearch_DocumentAddFieldNumber(d, NUMERIC_FIELD_NAME, i, RSFLDTYPE_NUMERIC);
+    RediSearch_SpecAddDocument(index, d);
+    if (i % 100000 == 0) {
+      clock_gettime(CLOCK_MONOTONIC_RAW, &now);
+      rs_timersub(&now, &prev, &result);
+      printf("Batch %ld took %f ms\n", i / 100000, result.tv_sec + result.tv_nsec / 1000000000.0);
+      prev = now;
+    }
+  }
+  RSIdxInfo info = { .version = RS_INFO_CURRENT_VERSION };
+  ASSERT_EQ(RediSearch_IndexInfo(index, &info), REDISEARCH_OK);
+}
+
+/*
 TEST_F(LLApiTest, testAddDocumentTextField) {
   // creating the index
   RSIndex* index = RediSearch_CreateIndex("index", NULL);
@@ -985,3 +1019,4 @@ TEST_F(LLApiTest, testInfo) {
   RediSearch_FreeIndexOptions(opt);
   RediSearch_DropIndex(index);  
 }
+*/
