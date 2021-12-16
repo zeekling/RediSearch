@@ -49,31 +49,29 @@ int NumericRange_Overlaps(NumericRange *n, double min, double max) {
   return rc;
 }
 
-size_t NumericRange_Add(NumericRange *n, t_docId docId, double value, int checkCard) {
-
-  int add = 0;
-  if (checkCard) {
-    add = 1;
-    size_t card = n->card;
-    for (int i = 0; i < array_len(n->values); i++) {
-
-      if (n->values[i].value == value) {
-        add = 0;
-        n->values[i].appearances++;
-        break;
-      }
+static inline void checkCardinality(NumericRange *n, double value) {
+  // check if value exists and increase appearance
+  uint32_t arrlen = array_len(n->values);
+  for (int i = 0; i < arrlen; i++) {
+    if (n->values[i].value == value) {
+      n->values[i].appearances++;
+      return;
     }
+  }
+
+  // add new value to cardinality values
+  CardinalityValue val = {.value = value, .appearances = 1};
+  n->values = array_append(n->values, val);
+  n->unique_sum += value;
+  ++n->card;
+}
+
+size_t NumericRange_Add(NumericRange *n, t_docId docId, double value, int checkCard) {
+  if (checkCard) {
+    checkCardinality(n, value);
   }
   if (n->minVal == NF_NEGATIVE_INFINITY || value < n->minVal) n->minVal = value;
   if (n->maxVal == NF_INFINITY || value > n->maxVal) n->maxVal = value;
-  if (add) {
-    if (n->card < n->splitCard) {
-      CardinalityValue val = {.value = value, .appearances = 1};
-      n->values = array_append(n->values, val);
-      n->unique_sum += value;
-    }
-    ++n->card;
-  }
 
   size_t size = InvertedIndex_WriteNumericEntry(n->entries, docId, value);
   n->invertedIndexSize += size;
